@@ -175,40 +175,46 @@ function updateMessage(id, rawContent) {
         contentToShow = contentToShow.replace(svgMatch[0], '');
     }
 
-    // === Обработка LaTeX БЕЗ markdown экранирования ===
+    // === ОБРАБОТКА ТЕКСТА БЕЗ MARKED — ДЛЯ КОРРЕКТНОГО LA TEX ===
     if (contentToShow.trim()) {
-        // Извлекаем все $...$ фрагменты
-        const latexRegex = /\$(.*?)\$/g;
+        const textDiv = document.createElement('div');
+        textDiv.style.lineHeight = '1.6';
+
+        // Разбиваем текст по формулам
+        const parts = [];
         let lastIndex = 0;
         let match;
-        const container = document.createElement('div');
 
+        // Ищем $...$ формулы
+        const latexRegex = /\$(.*?)\$/g;
         while ((match = latexRegex.exec(contentToShow)) !== null) {
             // Текст до формулы
             if (match.index > lastIndex) {
-                const before = contentToShow.slice(lastIndex, match.index);
-                const beforeEl = document.createElement('span');
-                beforeEl.textContent = before;
-                container.appendChild(beforeEl);
+                parts.push({ type: 'text', content: contentToShow.slice(lastIndex, match.index) });
             }
-
             // Формула
-            const latexEl = document.createElement('span');
-            latexEl.textContent = `$${match[1]}$`;
-            container.appendChild(latexEl);
-
+            parts.push({ type: 'latex', content: match[1] });
             lastIndex = match.index + match[0].length;
         }
-
         // Остаток текста
         if (lastIndex < contentToShow.length) {
-            const after = contentToShow.slice(lastIndex);
-            const afterEl = document.createElement('span');
-            afterEl.textContent = after;
-            container.appendChild(afterEl);
+            parts.push({ type: 'text', content: contentToShow.slice(lastIndex) });
         }
 
-        div.appendChild(container);
+        // Рендерим части
+        parts.forEach(part => {
+            if (part.type === 'text') {
+                const span = document.createElement('span');
+                span.textContent = part.content;
+                textDiv.appendChild(span);
+            } else if (part.type === 'latex') {
+                const span = document.createElement('span');
+                span.textContent = `$${part.content}$`;
+                textDiv.appendChild(span);
+            }
+        });
+
+        div.appendChild(textDiv);
     }
 
     // Рендерим LaTeX
