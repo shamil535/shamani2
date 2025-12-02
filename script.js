@@ -175,60 +175,59 @@ function updateMessage(id, rawContent) {
         contentToShow = contentToShow.replace(svgMatch[0], '');
     }
 
-    // === ОБРАБОТКА ТЕКСТА БЕЗ MARKED — ДЛЯ КОРРЕКТНОГО LA TEX ===
+    // === ОБРАБОТКА ТЕКСТА ДЛЯ КОРРЕКТНОГО LA TEX ===
     if (contentToShow.trim()) {
-    const textDiv = document.createElement('div');
-    textDiv.style.lineHeight = '1.6';
-    textDiv.style.wordBreak = 'break-word';
-
-    // Разбиваем текст по формулам
-    const parts = [];
-    let lastIndex = 0;
-    let match;
-
-    // Ищем $...$ формулы
-    const latexRegex = /\$(.*?)\$/g;
-    while ((match = latexRegex.exec(contentToShow)) !== null) {
-        // Текст до формулы
-        if (match.index > lastIndex) {
-            parts.push({ type: 'text', content: contentToShow.slice(lastIndex, match.index) });
+        const textDiv = document.createElement('div');
+        textDiv.style.lineHeight = '1.6';
+        
+        // Удаляем все HTML-теги для безопасности
+        const cleanText = contentToShow.replace(/<[^>]*>/g, '');
+        
+        // Разбиваем по формулам
+        const parts = [];
+        let lastIndex = 0;
+        let match;
+        const latexRegex = /\$([^$]+?)\$/g;
+        
+        while ((match = latexRegex.exec(cleanText)) !== null) {
+            if (match.index > lastIndex) {
+                parts.push({ type: 'text', content: cleanText.slice(lastIndex, match.index) });
+            }
+            parts.push({ type: 'latex', content: match[1] });
+            lastIndex = match.index + match[0].length;
         }
-        // Формула
-        parts.push({ type: 'latex', content: match[1] });
-        lastIndex = match.index + match[0].length;
-    }
-    // Остаток текста
-    if (lastIndex < contentToShow.length) {
-        parts.push({ type: 'text', content: contentToShow.slice(lastIndex) });
-    }
-
-    // Рендерим части
-    parts.forEach(part => {
-        if (part.type === 'text') {
-            const span = document.createElement('span');
-            span.textContent = part.content;
-            textDiv.appendChild(span);
-        } else if (part.type === 'latex') {
-            const span = document.createElement('span');
-            span.textContent = `$${part.content}$`;
-            textDiv.appendChild(span);
+        
+        if (lastIndex < cleanText.length) {
+            parts.push({ type: 'text', content: cleanText.slice(lastIndex) });
         }
-    });
 
-    div.appendChild(textDiv);
-}
+        // Рендерим части
+        parts.forEach(part => {
+            if (part.type === 'text') {
+                const span = document.createElement('span');
+                span.textContent = part.content;
+                textDiv.appendChild(span);
+            } else if (part.type === 'latex') {
+                const span = document.createElement('span');
+                span.className = 'latex';
+                span.textContent = `$${part.content}$`;
+                textDiv.appendChild(span);
+            }
+        });
 
-// Рендерим LaTeX
-if (window.MathJax && window.MathJax.typesetPromise) {
-    MathJax.typesetPromise([div]).catch(console.error);
-}
+        div.appendChild(textDiv);
+    }
+
+    // Рендерим LaTeX
+    if (window.MathJax) {
+        MathJax.typesetPromise([div]).catch(console.error);
+    }
 
     chatContainer.scrollTop = chatContainer.scrollHeight;
 }
 
-// === ВАЖНО: ИСПОЛЬЗУЙТЕ БЭКЕНД-ПРОКСИ! ===
 async function callQwen(prompt, imageBase64 = null) {
-    let systemPrompt = "Ты ShamanAi — умный помощник на базе шамана. Отвечай на русском. Используй ТОЛЬКО формат $...$ для формул. НЕ окружай формулы скобками или кавычками.";
+    let systemPrompt = "Ты ShamanAi — умный помощник на базе шамана. Отвечай на русском. Используй формат $...$ для формул. НЕ окружай формулы скобками или кавычками.";
 
     if (currentMode === 'graph') {
         systemPrompt += " Пользователь просит график. Верни ТОЛЬКО JSON для Plotly.js в блоке ```json ... ```.";
@@ -238,22 +237,16 @@ async function callQwen(prompt, imageBase64 = null) {
 
     const messages = [{ role: "system", content: systemPrompt }];
 
-   const userContent = [];
-   if (prompt) userContent.push({ type: "text", text: prompt });
-   if (imageBase64) {
-    userContent.push({
-        type: "image_url",
-        image_url: { url: `data:image/jpeg;base64,${imageBase64}` }
-    });
-    // Добавляем текстовый запрос, чтобы модель поняла, что делать с изображением
-    userContent.push({
-        type: "text",
-        text: "Проанализируй это изображение и ответь на связанный с ним вопрос."
-    });
-}
-messages.push({ role: "user", content: userContent });
+    const userContent = [];
+    if (prompt) userContent.push({ type: "text", text: prompt });
+    if (imageBase64) {
+        userContent.push({
+            type: "image_url",
+            image_url: { url: `data:image/jpeg;base64,${imageBase64}` }
+        });
+    }
+    messages.push({ role: "user", content: userContent });
 
-    // ⚠️ ЗАМЕНИТЕ ЭТОТ URL НА ВАШУ NETLIFY FUNCTION!
     const response = await fetch('/.netlify/functions/proxy', {
         method: 'POST',
         headers: {
@@ -268,7 +261,7 @@ messages.push({ role: "user", content: userContent });
 
     if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`Ошибка API: ${response.status}`);
+        throw new Error(`Ошибка API: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
