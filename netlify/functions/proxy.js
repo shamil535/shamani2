@@ -8,7 +8,7 @@ export async function handler(event) {
 
   try {
     const body = JSON.parse(event.body);
-
+    
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -21,7 +21,7 @@ export async function handler(event) {
     });
 
     const data = await response.json();
-
+    
     return {
       statusCode: response.status,
       body: JSON.stringify(data),
