@@ -322,3 +322,10 @@ button:active { transform: scale(0.95); }
 }
 .small-text { font-size: 0.8rem; margin-top: 10px; }
 .small-text a { color: #ff66c4; }
+.latex {
+    display: inline-block;
+    margin: 0 2px;
+    background: rgba(255,255,255,0.1);
+    padding: 0 4px;
+    border-radius: 4px;
+}
