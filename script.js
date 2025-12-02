@@ -237,16 +237,15 @@ async function callQwen(prompt, imageBase64 = null) {
 
     const messages = [{ role: "system", content: systemPrompt }];
 
-    // МУЛЬТИМОДАЛЬНЫЙ ФОРМАТ — ОБЯЗАТЕЛЕН ДЛЯ QWEN-VL
-    const userContent = [];
-    if (prompt) userContent.push({ type: "text", text: prompt });
-    if (imageBase64) {
-        userContent.push({
-            type: "image_url",
-            image_url: { url: `data:image/jpeg;base64,${imageBase64}` }
-        });
-    }
-    messages.push({ role: "user", content: userContent });
+   const userContent = [];
+   if (prompt) userContent.push({ type: "text", text: prompt });
+   if (imageBase64) {
+    userContent.push({
+        type: "image_url",
+        image_url: { url: `data:image/jpeg;base64,${imageBase64}` }
+    });
+}
+messages.push({ role: "user", content: userContent });
 
     // ⚠️ ЗАМЕНИТЕ ЭТОТ URL НА ВАШУ NETLIFY FUNCTION!
     const response = await fetch('/.netlify/functions/proxy', {
