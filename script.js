@@ -177,50 +177,51 @@ function updateMessage(id, rawContent) {
 
     // === ОБРАБОТКА ТЕКСТА БЕЗ MARKED — ДЛЯ КОРРЕКТНОГО LA TEX ===
     if (contentToShow.trim()) {
-        const textDiv = document.createElement('div');
-        textDiv.style.lineHeight = '1.6';
+    const textDiv = document.createElement('div');
+    textDiv.style.lineHeight = '1.6';
+    textDiv.style.wordBreak = 'break-word';
 
-        // Разбиваем текст по формулам
-        const parts = [];
-        let lastIndex = 0;
-        let match;
+    // Разбиваем текст по формулам
+    const parts = [];
+    let lastIndex = 0;
+    let match;
 
-        // Ищем $...$ формулы
-        const latexRegex = /\$(.*?)\$/g;
-        while ((match = latexRegex.exec(contentToShow)) !== null) {
-            // Текст до формулы
-            if (match.index > lastIndex) {
-                parts.push({ type: 'text', content: contentToShow.slice(lastIndex, match.index) });
-            }
-            // Формула
-            parts.push({ type: 'latex', content: match[1] });
-            lastIndex = match.index + match[0].length;
+    // Ищем $...$ формулы
+    const latexRegex = /\$(.*?)\$/g;
+    while ((match = latexRegex.exec(contentToShow)) !== null) {
+        // Текст до формулы
+        if (match.index > lastIndex) {
+            parts.push({ type: 'text', content: contentToShow.slice(lastIndex, match.index) });
         }
-        // Остаток текста
-        if (lastIndex < contentToShow.length) {
-            parts.push({ type: 'text', content: contentToShow.slice(lastIndex) });
-        }
-
-        // Рендерим части
-        parts.forEach(part => {
-            if (part.type === 'text') {
-                const span = document.createElement('span');
-                span.textContent = part.content;
-                textDiv.appendChild(span);
-            } else if (part.type === 'latex') {
-                const span = document.createElement('span');
-                span.textContent = `$${part.content}$`;
-                textDiv.appendChild(span);
-            }
-        });
-
-        div.appendChild(textDiv);
+        // Формула
+        parts.push({ type: 'latex', content: match[1] });
+        lastIndex = match.index + match[0].length;
+    }
+    // Остаток текста
+    if (lastIndex < contentToShow.length) {
+        parts.push({ type: 'text', content: contentToShow.slice(lastIndex) });
     }
 
-    // Рендерим LaTeX
-    if (window.MathJax) {
-        MathJax.typesetPromise([div]).catch(console.error);
-    }
+    // Рендерим части
+    parts.forEach(part => {
+        if (part.type === 'text') {
+            const span = document.createElement('span');
+            span.textContent = part.content;
+            textDiv.appendChild(span);
+        } else if (part.type === 'latex') {
+            const span = document.createElement('span');
+            span.textContent = `$${part.content}$`;
+            textDiv.appendChild(span);
+        }
+    });
+
+    div.appendChild(textDiv);
+}
+
+// Рендерим LaTeX
+if (window.MathJax && window.MathJax.typesetPromise) {
+    MathJax.typesetPromise([div]).catch(console.error);
+}
 
     chatContainer.scrollTop = chatContainer.scrollHeight;
 }
@@ -243,6 +244,11 @@ async function callQwen(prompt, imageBase64 = null) {
     userContent.push({
         type: "image_url",
         image_url: { url: `data:image/jpeg;base64,${imageBase64}` }
+    });
+    // Добавляем текстовый запрос, чтобы модель поняла, что делать с изображением
+    userContent.push({
+        type: "text",
+        text: "Проанализируй это изображение и ответь на связанный с ним вопрос."
     });
 }
 messages.push({ role: "user", content: userContent });
